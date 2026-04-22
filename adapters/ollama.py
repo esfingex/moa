@@ -9,26 +9,37 @@ Ideal para: análisis de código, búsquedas en el proyecto, refactoring sin env
 import json
 import urllib.request
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 DEFAULT_MODEL = "llama3"
 SKILLS_DIR = Path(__file__).parent.parent / "skills"
 
 
-def load_skill(skill_name: str) -> tuple[str, str, float]:
+def _get_router():
+    """Lazy import del router para evitar dependencias circulares."""
+    from pathlib import Path
+    import sys
+    core_dir = str(Path(__file__).parent.parent / "core")
+    if core_dir not in sys.path:
+        sys.path.insert(0, core_dir)
+    from model_router import ModelRouter
+    return ModelRouter()
+
+
+def load_skill(skill_name: str) -> tuple[str, str, str, float]:
     """
     Carga un skill desde skills/{skill_name}.md
-    Retorna: (system_prompt, model, temperature)
+    Retorna: (system_prompt, model, task_type, temperature)
     """
     skill_file = SKILLS_DIR / f"{skill_name}.md"
     if not skill_file.exists():
-        return "", DEFAULT_MODEL, 0.7
+        return "", DEFAULT_MODEL, "chat", 0.7
 
     content = skill_file.read_text(encoding="utf-8")
-    
-    # Parse frontmatter YAML simple
     model = DEFAULT_MODEL
     temperature = 0.7
+    task_type = "chat"
     system_prompt = content
 
     if content.startswith("---"):
@@ -36,7 +47,6 @@ def load_skill(skill_name: str) -> tuple[str, str, float]:
         if len(parts) >= 3:
             frontmatter = parts[1].strip()
             body = parts[2].strip()
-            
             for line in frontmatter.split("\n"):
                 if line.startswith("model:"):
                     model = line.split(":", 1)[1].strip()
@@ -45,10 +55,11 @@ def load_skill(skill_name: str) -> tuple[str, str, float]:
                         temperature = float(line.split(":", 1)[1].strip())
                     except ValueError:
                         pass
-            
+                elif line.startswith("task_type:"):
+                    task_type = line.split(":", 1)[1].strip()
             system_prompt = body
 
-    return system_prompt, model, temperature
+    return system_prompt, model, task_type, temperature
 
 
 def call(
@@ -71,11 +82,19 @@ def call(
     system_prompt = ""
     skill_model = model or DEFAULT_MODEL
     temperature = 0.7
+    task_type = "chat"
 
     # 1. Cargar skill si se especifica
     if skill:
-        system_prompt, skill_model, temperature = load_skill(skill)
-        if not model:
+        system_prompt, skill_model, task_type, temperature = load_skill(skill)
+
+    # 2. Auto-seleccionar el mejor modelo disponible según la tarea
+    if not model:
+        try:
+            router = _get_router()
+            best = router.best_for(task_type)
+            model = best or skill_model
+        except Exception:
             model = skill_model
 
     # 2. RAG: inyectar contenido de archivos relevantes

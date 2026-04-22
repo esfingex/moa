@@ -3,6 +3,7 @@ name: solaria_html_injector
 description: Experto en HTML/Alpine.js/HTMX para el Design System Solaria. Inyecta componentes UI sin romper la estructura existente.
 model: llama3
 temperature: 0.2
+task_type: html
 ---
 
 # SISTEMA

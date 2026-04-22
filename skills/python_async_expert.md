@@ -3,6 +3,7 @@ name: python_async_expert
 description: Experto en código Python asíncrono con FastAPI y SQLAlchemy. Detecta y corrige patrones incorrectos de async/await.
 model: llama3
 temperature: 0.1
+task_type: code
 ---
 
 # SISTEMA
