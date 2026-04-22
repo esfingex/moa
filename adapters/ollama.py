@@ -1,23 +1,115 @@
 """
-Adapter: Ollama (Local AI)
-===========================
-Conecta con Ollama para inferencia 100% local y privada.
+Adapter: Ollama (Local AI) con Skills
+========================================
+Conecta con Ollama. Si se especifica un skill, lo carga como system prompt
++ few-shot examples para guiar al modelo con contexto y ejemplos específicos.
+
 Ideal para: análisis de código, búsquedas en el proyecto, refactoring sin enviar datos a la nube.
 """
 import json
 import urllib.request
-
+from pathlib import Path
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 DEFAULT_MODEL = "llama3"
+SKILLS_DIR = Path(__file__).parent.parent / "skills"
 
 
-def call(prompt: str, context: str = "", model: str = DEFAULT_MODEL) -> str:
-    """Envía un prompt a Ollama y retorna la respuesta completa."""
+def load_skill(skill_name: str) -> tuple[str, str, float]:
+    """
+    Carga un skill desde skills/{skill_name}.md
+    Retorna: (system_prompt, model, temperature)
+    """
+    skill_file = SKILLS_DIR / f"{skill_name}.md"
+    if not skill_file.exists():
+        return "", DEFAULT_MODEL, 0.7
+
+    content = skill_file.read_text(encoding="utf-8")
+    
+    # Parse frontmatter YAML simple
+    model = DEFAULT_MODEL
+    temperature = 0.7
+    system_prompt = content
+
+    if content.startswith("---"):
+        parts = content.split("---", 2)
+        if len(parts) >= 3:
+            frontmatter = parts[1].strip()
+            body = parts[2].strip()
+            
+            for line in frontmatter.split("\n"):
+                if line.startswith("model:"):
+                    model = line.split(":", 1)[1].strip()
+                elif line.startswith("temperature:"):
+                    try:
+                        temperature = float(line.split(":", 1)[1].strip())
+                    except ValueError:
+                        pass
+            
+            system_prompt = body
+
+    return system_prompt, model, temperature
+
+
+def call(
+    prompt: str,
+    context: str = "",
+    model: str | None = None,
+    skill: str | None = None,
+    rag_files: list[str] | None = None,
+) -> str:
+    """
+    Envía un prompt a Ollama con soporte de Skills y RAG.
+
+    Args:
+        prompt: La pregunta o tarea principal.
+        context: Contexto adicional (texto libre).
+        model: Modelo de Ollama a usar (sobrescribe el del skill).
+        skill: Nombre del skill a cargar (sin extensión .md).
+        rag_files: Lista de rutas de archivos a inyectar como contexto RAG.
+    """
+    system_prompt = ""
+    skill_model = model or DEFAULT_MODEL
+    temperature = 0.7
+
+    # 1. Cargar skill si se especifica
+    if skill:
+        system_prompt, skill_model, temperature = load_skill(skill)
+        if not model:
+            model = skill_model
+
+    # 2. RAG: inyectar contenido de archivos relevantes
+    rag_context = ""
+    if rag_files:
+        rag_parts = []
+        for fpath in rag_files:
+            p = Path(fpath)
+            if p.exists():
+                content = p.read_text(encoding="utf-8")
+                # Limitar a 3000 chars por archivo para no saturar el contexto
+                if len(content) > 3000:
+                    content = content[:3000] + "\n... [truncado]"
+                rag_parts.append(f"### Archivo: {p.name}\n```\n{content}\n```")
+        if rag_parts:
+            rag_context = "\n\n## CONTEXTO DEL PROYECTO\n" + "\n\n".join(rag_parts)
+
+    # 3. Construir prompt final
+    full_prompt_parts = []
+    if system_prompt:
+        full_prompt_parts.append(system_prompt)
+    if rag_context:
+        full_prompt_parts.append(rag_context)
+    if context:
+        full_prompt_parts.append(f"\n## CONTEXTO ADICIONAL\n{context}")
+    full_prompt_parts.append(f"\n## TAREA\n{prompt}")
+
+    full_prompt = "\n\n".join(full_prompt_parts)
+
     payload = {
-        "model": model,
-        "prompt": f"{context}\n\n{prompt}" if context else prompt,
+        "model": model or DEFAULT_MODEL,
+        "prompt": full_prompt,
         "stream": False,
+        "options": {"temperature": temperature},
     }
 
     try:
@@ -26,7 +118,7 @@ def call(prompt: str, context: str = "", model: str = DEFAULT_MODEL) -> str:
             data=json.dumps(payload).encode("utf-8"),
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=60) as response:
+        with urllib.request.urlopen(req, timeout=120) as response:
             data = json.loads(response.read())
             return data.get("response", "").strip()
     except Exception as e:
@@ -34,6 +126,9 @@ def call(prompt: str, context: str = "", model: str = DEFAULT_MODEL) -> str:
 
 
 if __name__ == "__main__":
-    # Test rápido
-    reply = call("Explica en una línea qué hace Python.", model=DEFAULT_MODEL)
-    print(f"Ollama dice: {reply}")
+    # Test con skill de Python async
+    reply = call(
+        prompt="Corrige el siguiente código:\n\nasync def save(model):\n    file, key = find_view_file(model)\n    return file",
+        skill="python_async_expert",
+    )
+    print(f"Ollama con skill dice:\n{reply}")
