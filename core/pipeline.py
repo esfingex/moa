@@ -28,6 +28,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "adapters"))
 
 from model_router import ModelRouter
 
+SKILLS_DIR = Path(__file__).parent.parent / "skills"
+SOLARIA_CONTEXT_FILE = str(SKILLS_DIR / "context" / "solaria_base.md")
+
 
 # ============================================================
 # DEFINICIÓN DE PIPELINES
@@ -136,6 +139,14 @@ class PipelineRunner:
         if not pipeline:
             available = ", ".join(PIPELINES.keys())
             raise ValueError(f"Pipeline '{pipeline_name}' no existe. Disponibles: {available}")
+
+        # Auto-inject Solaria context if working with project_core
+        all_rag = list(rag_files or [])
+        if any("project_core" in f or "solaria_modules" in f or "/scw/" in f for f in all_rag):
+            if SOLARIA_CONTEXT_FILE not in all_rag:
+                all_rag.insert(0, SOLARIA_CONTEXT_FILE)
+                if verbose:
+                    print("  📌 Contexto Solaria inyectado automáticamente")
 
         results: dict[str, str] = {}
         prev_output = ""
