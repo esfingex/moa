@@ -10,6 +10,12 @@ MOA is a high-performance orchestration layer designed to control local AI model
 - **Auto-Onboarding**: Self-configuring system that audits your hardware and suggests the best model fleet.
 - **Model Sculpting**: Tooling to create specialized expert models in seconds.
 
+## 🏛️ Project Philosophy: Pure Orchestrator
+MOA is designed as a **Pure Orchestrator**. It follows a strict **Separation of Concerns**:
+1. **The Engine (MOA)**: Manages hardware detection, model routing, caching, and execution pipelines.
+2. **The Workload (Solaria & others)**: All domain-specific logic, scrapers, and business rules must reside **outside** this repository.
+3. **The Plugin Pattern**: MOA orchestrates external modules but never embeds their code in its `core/`.
+
 ## 🛠️ Installation
 ```bash
 git clone https://github.com/[TU_USUARIO]/moa-orchestrator.git

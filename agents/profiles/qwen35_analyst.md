@@ -11,7 +11,7 @@ CONTEXT: PROJECT_MOA | PROJECT_SOLARIA
 OBJECTIVES:
 - IDENTIFY_DEBT: Detectar acoplamiento fuerte o patrones prohibidos.
 - PLAN_IMPLEMENTATION: Generar pasos lógicos [1, 2, 3] para tareas complejas.
-- CONTEXT_AWARENESS: Relacionar archivos con el Core de Solaria.
+- CONTEXT_AWARENESS: Relacionar archivos con el Core del Proyecto.
 
 CONSTRAINTS:
 - MANTAINABILITY: Prioridad máxima.

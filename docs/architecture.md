@@ -13,7 +13,13 @@ MOA está vinculado nativamente con el ecosistema **MCP** para otorgar superpode
 - **Cavemem (Memory)**: Implementa una memoria episódica de largo plazo usando SQLite. Cada interacción se indexa y se recupera automáticamente para dar contexto histórico a los agentes.
 
 ## 4. MODEL SCULPTING (MODULAR BRAINS)
-El comando `build-model` permite inyectar el "Ground Truth" de Solaria en cualquier modelo base, transformándolo en un experto (Ej: `solaria-master`, `solaria-rutificador`).
+El comando `build-model` permite inyectar el "Ground Truth" de Solaria en cualquier modelo base, transformándolo en un experto (Ej: `solaria-master`).
 
 ## 5. M2M COMMUNICATION
 Todos los agentes operan en modo **High-Density**, eliminando capas de conversación humana para maximizar la velocidad y precisión en el intercambio de datos entre IAs.
+
+## 6. SEPARATION OF CONCERNS (PRINCIPIO FUNDAMENTAL)
+**MOA es un Orquestador Puro.**
+- **Prohibición de Lógica de Dominio**: Bajo ninguna circunstancia se debe incluir lógica específica de aplicaciones (ej: Scrapers, Rutificadores, Lógica de Negocio) dentro del repositorio de MOA.
+- **Motor vs. Carga de Trabajo**: MOA provee el motor de orquestación (Router, Cache, Adapters, Pipelines). Los módulos de Solaria y otras aplicaciones deben permanecer externos o cargarse dinámicamente.
+- **Núcleo Limpio**: El directorio `core/` está reservado exclusivamente para la lógica de orquestación de la plataforma.

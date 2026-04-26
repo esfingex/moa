@@ -6,8 +6,10 @@ from pathlib import Path
 OLLAMA_URL = "http://localhost:11434"
 BASE_DIR = Path(__file__).parent.parent
 CONFIG_DIR = BASE_DIR / "config"
-CACHE_FILE = BASE_DIR / "logs" / "model_cache.json"
-HARDWARE_PROFILE = CONFIG_DIR / "hardware_profile.json"
+CACHE_DIR = BASE_DIR / "cache"
+HARDWARE_PROFILE = CACHE_DIR / "hardware_profile.json"
+
+from core.cache_manager import cache
 
 class ModelRouter:
     def __init__(self):
@@ -83,9 +85,6 @@ class ModelRouter:
         installed_candidates = [c for c in candidates if any(c in m for m in self.available_models)]
         
         if installed_candidates:
-            # En MOA, si solaria-master está instalado, suele ser la mejor opción (Master Sculpting)
-            if any("solaria-master" in m for m in self.available_models):
-                return "solaria-master"
             return installed_candidates[0]
         
         return self.available_models[0] if self.available_models else None

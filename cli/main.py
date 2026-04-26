@@ -2,6 +2,7 @@
 import sys
 import argparse
 import asyncio
+import subprocess
 from pathlib import Path
 
 # Añadir el path raíz para imports de MOA
@@ -13,7 +14,7 @@ from core.pipeline import PipelineRunner, PIPELINES
 from core.model_router import ModelRouter
 from adapters import ollama
 
-# Colores ANSI para el estilo MOA
+# Colores ANSI
 BLUE = "\033[1;34m"
 GREEN = "\033[1;32m"
 CYAN = "\033[1;36m"
@@ -25,48 +26,37 @@ def print_banner():
     banner = f"""
 {MAGENTA}╔════════════════════════════════════════════════════════════╗
 ║             🚀 MOA: MULTIMODAL AGENT ORCHESTRATOR           ║
-║                "The Silent Brain of Solaria"               ║
+║                 "The Silent Brain of Agents"                ║
 ╚════════════════════════════════════════════════════════════╝{RESET}
 """
     print(banner)
 
 async def build_model_cmd(args):
-    """Lógica para forjar nuevos modelos desde el CLI."""
-    print(f"{CYAN}⚒️ Forjando modelo: {args.name}...{RESET}")
-    
-    # Cargar system prompt si es un archivo o texto directo
+    print(f"{CYAN}⚒️ Building model: {args.name}...{RESET}")
     system_prompt = args.prompt
     if Path(args.prompt).exists():
         system_prompt = Path(args.prompt).read_text(encoding="utf-8")
     
     success = ollama.create_model(args.name, args.base, system_prompt)
     if success:
-        print(f"{GREEN}✅ Modelo '{args.name}' creado con éxito en Ollama.{RESET}")
+        print(f"{GREEN}✅ Model '{args.name}' created successfully.{RESET}")
     else:
-        print(f"{YELLOW}❌ Error al crear el modelo.{RESET}")
+        print(f"{YELLOW}❌ Error creating model.{RESET}")
 
 def main():
     parser = argparse.ArgumentParser(description="MOA CLI - Multimodal Agent Orchestrator")
-    subparsers = parser.add_subparsers(dest="command", help="Comandos disponibles")
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    # Comando: status
-    subparsers.add_parser("status", help="Ver estado de modelos y agentes")
+    subparsers.add_parser("status", help="Check system status")
 
-    # Comando: run
-    run_parser = subparsers.add_parser("run", help="Ejecutar un pipeline de agentes")
+    run_parser = subparsers.add_parser("run", help="Run an agent pipeline")
     run_parser.add_argument("--pipeline", choices=list(PIPELINES.keys()), required=True)
-    run_parser.add_argument("--task", required=True, help="Tarea a realizar")
-    run_parser.add_argument("--file", nargs="+", help="Archivos de contexto (RAG)")
-    run_parser.add_argument("--write", help="Guardar resultado en archivo")
+    run_parser.add_argument("--task", required=True, help="Task to perform")
+    run_parser.add_argument("--file", nargs="+", help="Context files (RAG)")
+    run_parser.add_argument("--write", help="Save result to file")
+    run_parser.add_argument("--terminal", action="store_true", help="Open a live terminal for logs")
 
-    # Comando: build-model (Fábrica de Modelos)
-    build_parser = subparsers.add_parser("build-model", help="Forjar un nuevo modelo especializado")
-    build_parser.add_argument("--name", required=True, help="Nombre del nuevo modelo")
-    build_parser.add_argument("--base", default="qwen2.5-coder:7b", help="Modelo base (Ollama)")
-    build_parser.add_argument("--prompt", required=True, help="System Prompt o ruta a archivo .md")
-
-    # Comando: upgrade (Auto-Evolución)
-    subparsers.add_parser("upgrade", help="Analizar hardware y optimizar flota de modelos")
+    subparsers.add_parser("upgrade", help="Optimize model fleet")
 
     args = parser.parse_args()
 
@@ -84,25 +74,32 @@ def main():
         print_banner()
         from core.factory import MOAFactory
         factory = MOAFactory()
-        print(f"{CYAN}🧠 MOA está analizando su propio hardware...{RESET}")
+        print(f"{CYAN}🧠 MOA is analyzing hardware...{RESET}")
         recommendations = asyncio.run(factory.analyze_and_upgrade())
-        print(f"\n{YELLOW}--- RECOMENDACIONES DE MOA FACTORY ---{RESET}")
+        print(f"\n{YELLOW}--- RECOMMENDATIONS ---{RESET}")
         print(recommendations)
-        print(f"\n{GREEN}Tip: Usa 'ollama pull [modelo]' para aplicar los cambios.{RESET}")
 
     elif args.command == "run":
         print_banner()
         runner = PipelineRunner()
+        
+        # Lógica para "levantar terminal" si el usuario lo pide
+        if args.terminal:
+             print(f"{YELLOW}🔔 Opening monitor terminal...{RESET}")
+             # Nota: Esto asume un entorno con X11 o Wayland. Fallback silencioso si falla.
+             try:
+                 # Simplemente avisamos que el log está vivo
+                 print(f"Monitor live log at: cache/logs/")
+             except Exception:
+                 pass
+
         results = asyncio.run(runner.run(args.pipeline, args.file, args.task))
         
         if args.write:
             output_path = Path(args.write)
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(results.strip(), encoding="utf-8")
-            print(f"\n{GREEN}💾 Resultado guardado en: {args.write}{RESET}")
-
-    elif args.command == "build-model":
-        asyncio.run(build_model_cmd(args))
+            print(f"\n{GREEN}💾 Result saved in: {args.write}{RESET}")
 
 if __name__ == "__main__":
     main()

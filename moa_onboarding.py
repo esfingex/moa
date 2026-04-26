@@ -72,7 +72,7 @@ async def run_onboarding():
     # 5. EDUCACIÓN DE IA (Verificar Documentación)
 
     # 4. MASTER SCULPTING (Forjar el Cerebro)
-    print(f"\n🔨 {CYAN}Forjando el Modelo Maestro (solaria-master)...{RESET}")
+    print(f"\n🔨 {CYAN}Forjando el Modelo Maestro (moa-master)...{RESET}")
     await factory.auto_build_master()
 
     print(f"\n{GREEN}🎉 ¡MOA ha sido inicializado con éxito!{RESET}")

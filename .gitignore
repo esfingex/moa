@@ -28,6 +28,7 @@ config/hardware_profile.json
 .env
 
 # Logs & Data
+cache/
 logs/*.json
 logs/*.log
 *.db

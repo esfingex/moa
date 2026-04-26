@@ -4,7 +4,7 @@ from pathlib import Path
 import time
 import re
 
-# Asegurar que el path incluya la raíz del proyecto para imports absolutos
+# Asegurar que el path incluya la raíz del proyecto
 BASE_DIR = Path(__file__).parent.parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
@@ -13,34 +13,33 @@ from core.model_router import ModelRouter
 from core.config_loader import settings
 from adapters import ollama
 
-# Rutas actualizadas
+# Rutas Genéricas
 AGENTS_DIR = BASE_DIR / "agents" / "profiles"
-SOLARIA_CONTEXT_FILE = str(AGENTS_DIR / "context" / "solaria_base.md")
-PROJECT_CORE_DIR = BASE_DIR / "project_core"
-LOGS_DIR = BASE_DIR / "logs"
+CACHE_DIR = BASE_DIR / "cache"
+LOGS_DIR = CACHE_DIR / "logs"
 
+# Pipelines Estándar (Ejemplos genéricos)
 PIPELINES: dict[str, list[dict]] = {
-    "solaria_module_specialists": [
-        {"skill": "qwen25_coder", "label": "📐 MOA Arquitecto", "task": "Genera el modelo Python (models/[name].py). REGLAS: 1. Heredar de 'app.core.database.Base'. 2. Usar campos de 'app.core.database.fields'. Sigue el patrón Solaria.", "use_prev": False},
-        {"skill": "qwen25_coder", "label": "🖼️ MOA Visualizador", "task": "Genera el JSON de vistas en 'config/views/[name]_views.json'. Incluye tree, form y search (HTMX).", "use_prev": True},
-        {"skill": "phi4_tester", "label": "🛡️ MOA Auditor", "task": "Audita el código y JSON contra las reglas del lote. Si el código cumple con los CAMPOS EXACTOS y NO tiene One2many, DA TU APROBACIÓN.", "use_prev": True},
-        {"skill": "llama31_writer", "label": "📝 MOA Escritor", "task": "Genera el '__manifest__.py' y 'menu.json'.", "use_prev": True},
+    "software_architect": [
+        {"skill": "architect", "label": "📐 MOA Architect", "task": "Design the system architecture based on requirements.", "use_prev": False},
+        {"skill": "coder", "label": "💻 MOA Coder", "task": "Implement the design following best practices.", "use_prev": True},
+        {"skill": "tester", "label": "🛡️ MOA Tester", "task": "Audit and verify the implementation.", "use_prev": True},
     ],
-    "thinker": [
-        {"skill": "phi4_tester", "label": "🧠 MOA Pensador", "task": "Analiza la consulta y proporciona un razonamiento profundo.", "use_prev": False},
+    "thought_flow": [
+        {"skill": "reasoner", "label": "🧠 MOA Thinker", "task": "Deep analysis of the query.", "use_prev": False},
     ],
 }
 
 class PipelineRunner:
     def __init__(self):
         self.router = ModelRouter()
-        LOGS_DIR.mkdir(exist_ok=True)
+        LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
     async def run_step(self, step, full_task, context, all_rag, log_path, verbose=True):
         skill = step["skill"]
         label = step["label"]
         
-        # Búsqueda de contexto extendido en el registro de agentes
+        # Búsqueda de contexto en el registro de agentes
         agent_registry_dir = AGENTS_DIR / "registry" / skill
         if agent_registry_dir.exists():
             for reg_file in agent_registry_dir.glob("*.md"):
@@ -52,6 +51,9 @@ class PipelineRunner:
         full_response = []
 
         while current_try <= max_retries:
+            # INDICADOR DE ACTIVIDAD EN TERMINAL
+            print(f"\n[EXEC] {label} (Try {current_try+1})...", end="\r", flush=True)
+            
             generator = ollama.call(
                 prompt=full_task,
                 context=context,
@@ -62,61 +64,45 @@ class PipelineRunner:
             
             full_response = []
             with log_path.open("a") as f:
-                f.write(f"\n[MOA Agente: {label} - Intento {current_try+1}]\n")
+                f.write(f"\n[{label} - {time.ctime()}]\n")
                 for chunk in generator:
                     if isinstance(chunk, str):
                         f.write(chunk)
                         full_response.append(chunk)
-                        if verbose: print(chunk, end="", flush=True)
+                        if verbose:
+                            # Stream real a la terminal para visibilidad
+                            print(chunk, end="", flush=True)
             
             full_text = "".join(full_response)
-            clean_text = re.sub(r'<think>.*?</think>', '', full_text, flags=re.DOTALL).lower()
-            
-            prohibited = ["odoo", "django", "xml", "urlpatterns", "serializer"]
-            violations = [p for p in prohibited if p in clean_text]
-            
-            if violations and current_try < max_retries:
-                error_msg = f"⚠️ ALERTA MOA: Has usado elementos prohibidos: {violations}. Reintenta en formato Solaria Puro."
-                context = f"{context}\n\n## ERROR ANTERIOR:\n{error_msg}"
+            if not full_text:
                 current_try += 1
                 continue
-            else:
-                break
+                
+            break
         
         return "".join(full_response)
 
     async def run(self, pipeline_name: str, rag_files: list[str] = None, task: str = ""):
         if pipeline_name not in PIPELINES:
-            raise ValueError(f"Pipeline '{pipeline_name}' no existe en MOA.")
+            raise ValueError(f"Pipeline '{pipeline_name}' not found.")
 
         all_rag = list(rag_files or [])
-        if any(x in str(all_rag) + task for x in ["solaria", "electoral", "papernews"]):
-            if SOLARIA_CONTEXT_FILE not in all_rag:
-                all_rag.insert(0, SOLARIA_CONTEXT_FILE)
-            
-            # Inyectar código real del núcleo de Solaria para Ground Truth
-            core_files = [
-                PROJECT_CORE_DIR / "app" / "core" / "database" / "fields.py",
-                PROJECT_CORE_DIR / "app" / "core" / "database" / "registry.py"
-            ]
-            for cf in core_files:
-                if cf.exists() and str(cf) not in all_rag:
-                    all_rag.append(str(cf))
+        log_path = LOGS_DIR / f"pipeline_{int(time.time())}.log"
+
+        print(f"\n🚀 MOA ORCHESTRATOR: Running '{pipeline_name}'")
+        print(f"📂 Log: {log_path.relative_to(BASE_DIR)}")
+        print("-" * 50)
 
         prev_output = ""
-        log_path = LOGS_DIR / f"moa_pipeline_{int(time.time())}.log"
-
-        print(f"🚀 Iniciando Pipeline MOA: {pipeline_name}\n")
-
         for step in PIPELINES[pipeline_name]:
             label = step["label"]
-            print(f"[{label}] en ejecución...")
+            print(f"\n▶️  STEP: {label}")
             
-            context = f"## Resultado anterior:\n{prev_output}" if step.get("use_prev") and prev_output else ""
-            full_task = f"TAREA PRINCIPAL:\n{task}\n\nTAREA ESPECÍFICA AGENTE:\n{step['task']}"
+            context = f"## Previous Output:\n{prev_output}" if step.get("use_prev") and prev_output else ""
+            full_task = f"TASK:\n{task}\n\nAGENT INSTRUCTIONS:\n{step['task']}"
             
             output = await self.run_step(step, full_task, context, all_rag, log_path)
             prev_output = output
 
-        print("\n✅ Pipeline MOA completado.")
+        print(f"\n\n✅ Pipeline '{pipeline_name}' completed.")
         return prev_output
