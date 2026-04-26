@@ -1,206 +1,106 @@
-"""
-Model Router — Solaria Agent Hub
-==================================
-Detecta los modelos disponibles en Ollama y selecciona
-automáticamente el mejor para cada tipo de tarea.
-
-Optimizado para hardware con 12 GB VRAM (detectado via CanIRun.ai):
-  - RUNS GREAT:  hasta ~7 GB  (~55+ tok/s)
-  - RUNS WELL:   hasta ~11 GB (~22-55 tok/s)
-  - AVOID:       12+ GB (saturan VRAM, se van a RAM = muy lento)
-
-Categorías de tarea:
-  code       → Corrección/generación de código Python, JS, etc.
-  html       → Plantillas HTML, CSS, Alpine.js
-  analysis   → Análisis de archivos, búsqueda de patrones
-  reasoning  → Razonamiento complejo, planificación
-  chat       → Conversación general
-  embedding  → RAG, búsqueda semántica (usa nomic-embed-text)
-"""
 import json
+import subprocess
 import urllib.request
 from pathlib import Path
 
 OLLAMA_URL = "http://localhost:11434"
-CACHE_FILE = Path(__file__).parent.parent / "logs" / "model_cache.json"
-
-# ============================================================
-# MAPA DE CAPACIDADES
-# Orden: mejor → peor para cada tarea.
-# Prioriza modelos que corren GREAT en 12 GB VRAM.
-# ============================================================
-MODEL_CAPABILITY_MAP: dict[str, list[str]] = {
-    "code": [
-        # RUNS GREAT en 12 GB VRAM — especializados en código
-        "qwen2.5-coder",       # 7B ~4.7GB — El MEJOR open-source para código actualmente
-        "deepseek-coder:6.7",  # 6.7B ~3.8GB — Muy bueno en Python/FastAPI
-        "deepseek-coder",      # cualquier variante
-        "codegemma",           # 7B ~5GB — Google, muy preciso
-        "starcoder2",          # 7B ~4.4GB — Bueno en completación
-        # RUNS WELL — modelos generales con buen código
-        "phi4",                # 14B ~7.7GB — Phi-4, razonamiento + código
-        "qwen3.5",             # 9B ~5.1GB — Ya instalado, bueno en código
-        "llama3.1",            # 8B ~4.6GB — Ya instalado, fallback sólido
-        "llama3",
-        "mistral",
-        "phi3.5",
-        "phi3",
-    ],
-    "html": [
-        "qwen2.5-coder",       # Entiende bien HTML/CSS/JS
-        "deepseek-coder",
-        "codegemma",
-        "qwen3.5",
-        "llama3.1",
-        "llama3",
-        "phi3.5",
-        "mistral",
-    ],
-    "analysis": [
-        # Para análisis de código y proyectos: priorizar contexto largo
-        "qwen3.5",             # 9B — Muy bueno en comprensión y análisis
-        "llama3.1",            # 8B — 128K contexto, ideal para leer archivos grandes
-        "phi4",                # 14B — DECENT pero excelente razonamiento
-        "llama3",
-        "mistral",
-        "qwen2.5-coder",       # También analiza bien código
-        "phi3.5",
-    ],
-    "reasoning": [
-        # phi4-mini-reasoning está optimizado para razonamiento lógico
-        "phi4-mini-reasoning", # Ya instalado — optimizado para razonamiento
-        "phi4",                # 14B — DECENT en tu hardware
-        "qwen3.5",             # Buen razonamiento multi-step
-        "llama3.1",
-        "mistral",
-        "phi3.5",
-    ],
-    "chat": [
-        "llama3.1",            # ~55 tok/s — rápido y conversacional
-        "qwen3.5",             # ~49 tok/s
-        "phi3.5",              # ~X tok/s — muy ligero
-        "phi4-mini-reasoning",
-        "mistral",
-        "llama3",
-    ],
-    "embedding": [
-        # Para RAG: usar siempre el modelo de embeddings
-        "nomic-embed-text",    # Ya instalado — 274MB, perfecto para RAG
-        "mxbai-embed",
-        "all-minilm",
-        "snowflake-arctic",
-    ],
-}
-
-# Modelos a EVITAR en este hardware (>12 GB, se van a RAM)
-AVOID_ON_12GB = [
-    "mistral-small-3.1",  # 12.8 GB — 107% VRAM
-    "gemma3:27b",         # 14.3 GB — 119% VRAM
-    "qwen2.5-coder:32b",  # 16.9 GB — 141% VRAM
-    "qwen3:32b",          # 16.9 GB — 141% VRAM
-    "deepseek-r1:32b",    # 16.9 GB — 141% VRAM
-    "llama3.3:70b",       # 36.4 GB — TOO HEAVY
-    "llama4",             # 56+ GB — TOO HEAVY
-]
-
+BASE_DIR = Path(__file__).parent.parent
+CONFIG_DIR = BASE_DIR / "config"
+CACHE_FILE = BASE_DIR / "logs" / "model_cache.json"
+HARDWARE_PROFILE = CONFIG_DIR / "hardware_profile.json"
 
 class ModelRouter:
-    """
-    Detecta los modelos disponibles en Ollama y elige
-    el mejor para cada tipo de tarea según el hardware real.
-    """
-
-    def __init__(self, refresh: bool = False):
-        self._installed: list[str] = []
-        self._load_installed(refresh)
-
-    def _load_installed(self, refresh: bool = False):
-        """Carga la lista de modelos desde Ollama (con caché de 1h)."""
-        if CACHE_FILE.exists() and not refresh:
-            try:
-                import time
-                data = json.loads(CACHE_FILE.read_text())
-                age = time.time() - data.get("timestamp", 0)
-                if age < 3600 and data.get("models"):  # caché de 1 hora
-                    self._installed = data["models"]
-                    return
-            except Exception:
-                pass
-
-        self._installed = self._fetch_from_ollama()
-        CACHE_FILE.parent.mkdir(exist_ok=True)
-        import time
-        CACHE_FILE.write_text(json.dumps({
-            "models": self._installed,
-            "timestamp": time.time()
-        }, indent=2))
-
-    def _fetch_from_ollama(self) -> list[str]:
-        """Consulta la API de Ollama para obtener modelos instalados."""
+    def __init__(self):
+        CONFIG_DIR.mkdir(exist_ok=True)
         try:
-            req = urllib.request.Request(f"{OLLAMA_URL}/api/tags")
-            with urllib.request.urlopen(req, timeout=5) as response:
+            from core.config_loader import settings
+            self.settings = settings
+        except ImportError:
+            self.settings = None
+        self.profile = self._load_or_detect_hardware()
+        self.available_models = self._get_ollama_models()
+
+    def _load_or_detect_hardware(self):
+        """Detecta el hardware o carga el perfil existente."""
+        if HARDWARE_PROFILE.exists():
+            return json.loads(HARDWARE_PROFILE.read_text())
+        
+        print("🔍 MOA: Detectando hardware por primera vez...")
+        vram_gb = 0
+        ram_gb = 0
+        
+        # 1. Detección de RAM (Linux fallback)
+        try:
+            with open('/proc/meminfo', 'r') as f:
+                for line in f:
+                    if 'MemTotal' in line:
+                        ram_gb = int(line.split()[1]) // (1024 * 1024)
+                        break
+        except Exception:
+            ram_gb = 8 # Fallback genérico
+
+        # 2. Detección de NVIDIA VRAM
+        try:
+            res = subprocess.check_output(["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"], stderr=subprocess.DEVNULL)
+            vram_gb = int(res.decode().strip()) // 1024
+        except Exception:
+            pass
+
+        profile = {
+            "vram_gb": vram_gb,
+            "ram_gb": ram_gb,
+            "mode": "GPU" if vram_gb > 0 else "CPU",
+            "great_threshold": (vram_gb or ram_gb) * 0.6,
+            "max_threshold": (vram_gb or ram_gb) * 0.9
+        }
+        HARDWARE_PROFILE.write_text(json.dumps(profile, indent=2))
+        return profile
+
+    def _get_ollama_models(self):
+        """Obtiene la lista de modelos instalados en Ollama."""
+        try:
+            with urllib.request.urlopen(f"{OLLAMA_URL}/api/tags") as response:
                 data = json.loads(response.read())
                 return [m["name"] for m in data.get("models", [])]
-        except Exception as e:
-            print(f"⚠️  No se pudo conectar con Ollama: {e}")
+        except Exception:
             return []
 
-    def installed(self) -> list[str]:
-        """Retorna la lista de modelos instalados."""
-        return self._installed
-
     def best_for(self, task_type: str) -> str | None:
-        """
-        Retorna el mejor modelo instalado para el tipo de tarea dado.
-        Evita automáticamente modelos que saturan el hardware.
-        """
-        priority_list = MODEL_CAPABILITY_MAP.get(task_type, MODEL_CAPABILITY_MAP["chat"])
+        """Selecciona el mejor modelo disponible según el perfil de hardware y configuración."""
+        # Mapa de preferencia cargado desde configuración
+        if self.settings and hasattr(self.settings, 'capability_map'):
+            capability_map = self.settings.capability_map
+        else:
+            capability_map = {
+                "code": ["qwen2.5-coder:7b", "solaria-master"],
+                "reasoning": ["phi4", "solaria-master"],
+                "chat": ["llama3.1:8b", "solaria-master"]
+            }
+        
+        candidates = capability_map.get(task_type, ["llama3.1:8b"])
+        
+        # Filtrar por los que realmente están instalados
+        installed_candidates = [c for c in candidates if any(c in m for m in self.available_models)]
+        
+        if installed_candidates:
+            # En MOA, si solaria-master está instalado, suele ser la mejor opción (Master Sculpting)
+            if any("solaria-master" in m for m in self.available_models):
+                return "solaria-master"
+            return installed_candidates[0]
+        
+        return self.available_models[0] if self.available_models else None
 
-        for preferred in priority_list:
-            for installed in self._installed:
-                # Saltar modelos que sobrepasan el hardware
-                if any(avoid in installed.lower() for avoid in AVOID_ON_12GB):
-                    continue
-                # Comparación flexible por nombre base
-                if preferred.lower() in installed.lower():
-                    return installed
-
-        # Fallback: primer modelo instalado que no sea de embeddings
-        for m in self._installed:
-            if "embed" not in m.lower():
-                return m
-        return None
-
-    def report(self) -> str:
-        """Genera un reporte legible de los modelos disponibles y sus roles."""
-        if not self._installed:
-            return "❌ Ollama no disponible o sin modelos instalados."
-
-        lines = [f"🤖 Modelos en Ollama ({len(self._installed)}) — Hardware: 12 GB VRAM\n"]
-
-        for task, icon in [
-            ("code", "⚙️ "), ("html", "🎨"), ("analysis", "🔍"),
-            ("reasoning", "🧠"), ("chat", "💬"), ("embedding", "📐"),
-        ]:
-            best = self.best_for(task)
-            lines.append(f"  {icon} {task:12s} → {best or 'Sin modelo disponible'}")
-
-        lines.append(f"\n📦 Instalados: {', '.join(self._installed)}")
-        return "\n".join(lines)
-
+    def report(self):
+        return f"""
+{'-'*40}
+🚀 MOA HARDWARE PROFILE:
+Mode: {self.profile['mode']}
+VRAM: {self.profile['vram_gb']} GB
+RAM: {self.profile['ram_gb']} GB
+Models Installed: {len(self.available_models)}
+{'-'*40}
+"""
 
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description="Solaria Model Router")
-    parser.add_argument("--refresh", action="store_true", help="Re-detectar modelos")
-    parser.add_argument("--task", default=None, help="Ver el mejor modelo para una tarea")
-    args = parser.parse_args()
-
-    router = ModelRouter(refresh=args.refresh)
-
-    if args.task:
-        best = router.best_for(args.task)
-        print(f"✅ Mejor modelo para '{args.task}': {best or 'No disponible'}")
-    else:
-        print(router.report())
+    router = ModelRouter()
+    print(router.report())

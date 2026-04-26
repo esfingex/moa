@@ -1,0 +1,4 @@
+{
+  "⚙️ Corrección directa": "```html\n<div x-data=\"{ filterText: '' }\" class=\"st-badge-container\">\n    <span x-show=\"filterText\" class=\"st-badge\" style=\"background-color: var(--sol-primary-bg); color: var(--sol-primary);\">\n        Filtrado por: {{ filterText }}\n    </span>\n</div>\n\n<script>\ndocument.addEventListener('DOMContentLoaded', () => {\n    const urlParams = new URLSearchParams(window.location.search);\n    const groupId = urlParams.get('group_id');\n    if (groupId) {\n        document.querySelector('[x-data]').setAttribute('data-filter-text', `Filtrado por: ${groupId}`);\n    }\n});\n</script>\n```",
+  "🧪 Tests": "Error al conectar con Ollama: timed out"
+}

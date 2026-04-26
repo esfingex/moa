@@ -1,12 +1,14 @@
 {
   "models": [
+    "solaria-coder:latest",
+    "solaria-writer:latest",
+    "solaria-auditor:latest",
     "deepseek-coder:6.7b",
     "qwen2.5-coder:7b",
     "nomic-embed-text:latest",
     "llama3.1:8b",
     "qwen3.5:9b",
-    "phi4-mini-reasoning:latest",
-    "phi3.5:latest"
+    "phi4-mini-reasoning:latest"
   ],
-  "timestamp": 1776887566.726446
+  "timestamp": 1777220297.4257255
 }

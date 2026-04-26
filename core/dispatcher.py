@@ -1,7 +1,8 @@
 """
-Solaria Agent Hub — Core Dispatcher
-====================================
-Recibe una tarea, elige el adapter adecuado y ejecuta.
+MOA — Core Dispatcher
+==================================
+Gestiona la ejecución de tareas distribuyendo el trabajo a los modelos
+correspondientes a través del Model Router.
 """
 from __future__ import annotations
 
@@ -69,8 +70,7 @@ class Dispatcher:
 
 
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description="Solaria Agent Hub Dispatcher")
+    parser = argparse.ArgumentParser(description="MOA Agent Dispatcher")
     parser.add_argument("--task", required=True, help="Nombre del tool a ejecutar")
     parser.add_argument("--adapter", default="ollama", help="Adapter de IA a usar")
     parser.add_argument("--args", default="{}", help="JSON con argumentos para el tool")
