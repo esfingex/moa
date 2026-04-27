@@ -1,0 +1,31 @@
+{
+    "navbar": {
+        "items": [
+            {
+                "id": "papernews_root",
+                "label": "Papernews",
+                "url": "/papernews",
+                "active_match": "papernews",
+                "icon": "fa-solid fa-cube",
+                "sequence": 10,
+                "submenu": []
+            }
+        ]
+    },
+    "tiles": [
+        {
+            "id": "papernews",
+            "title": "Papernews",
+            "url": "/papernews",
+            "icon": "fa-solid fa-cube",
+            "model": "papernews.main",
+            "sequence": 10,
+            "color": {
+                "border": "#e2e8f0",
+                "gradient_from": "#f8fafc",
+                "gradient_to": "#f1f5f9",
+                "icon": "#475569"
+            }
+        }
+    ]
+}

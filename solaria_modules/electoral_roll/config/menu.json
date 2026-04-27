@@ -1,0 +1,31 @@
+{
+    "navbar": {
+        "items": [
+            {
+                "id": "electoral_roll_root",
+                "label": "Electoral Roll",
+                "url": "/electoral_roll",
+                "active_match": "electoral_roll",
+                "icon": "fa-solid fa-cube",
+                "sequence": 10,
+                "submenu": []
+            }
+        ]
+    },
+    "tiles": [
+        {
+            "id": "electoral_roll",
+            "title": "Electoral Roll",
+            "url": "/electoral_roll",
+            "icon": "fa-solid fa-cube",
+            "model": "electoral_roll.main",
+            "sequence": 10,
+            "color": {
+                "border": "#e2e8f0",
+                "gradient_from": "#f8fafc",
+                "gradient_to": "#f1f5f9",
+                "icon": "#475569"
+            }
+        }
+    ]
+}

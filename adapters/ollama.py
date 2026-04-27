@@ -26,11 +26,10 @@ def create_model(name: str, base: str, system_prompt: str) -> bool:
     Útil para el 'Model Sculpting' de MOA.
     """
     url = settings.ollama_url.replace("/generate", "/create")
-    modelfile = f'FROM {base}\nSYSTEM """{system_prompt}"""'
-    
     payload = {
         "name": name,
-        "modelfile": modelfile,
+        "from": base,
+        "system": system_prompt,
         "stream": False
     }
     

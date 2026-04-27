@@ -1,0 +1,86 @@
+{
+    "electoral_roll.person": {
+        "views": {
+            "tree": {
+                "type": "tree",
+                "template": "layouts/list_htmx.html",
+                "title": "Electoral Roll",
+                "fields": [
+                    "contact_id",
+                    "polling_station",
+                    "circumscription",
+                    "birth_date"
+                ],
+                "searchable": true,
+                "actions": [
+                    "edit",
+                    "delete"
+                ]
+            },
+            "form": {
+                "type": "form",
+                "template": "layouts/form_htmx.html",
+                "title": "Person Profile",
+                "layout": "grid",
+                "groups": [
+                    {
+                        "name": "general",
+                        "label": "General Information",
+                        "columns": 2,
+                        "fields": []
+                    },
+                    {
+                        "name": "electoral_data",
+                        "label": "Datos Electorales",
+                        "columns": 1,
+                        "fields": [
+                            "contact_id",
+                            "polling_station",
+                            "circumscription",
+                            "birth_date"
+                        ]
+                    }
+                ],
+                "notebooks": [
+                    {
+                        "name": "electoral_data",
+                        "label": "Datos Electorales",
+                        "tabs": [
+                            {
+                                "name": "general",
+                                "label": "General Information",
+                                "fields": []
+                            },
+                            {
+                                "name": "electoral_info",
+                                "label": "Electoral Information",
+                                "fields": [
+                                    "contact_id",
+                                    "polling_station",
+                                    "circumscription",
+                                    "birth_date"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            "kanban": {
+                "type": "kanban",
+                "template": "layouts/kanban_htmx.html",
+                "title": "Electoral Roll",
+                "group_by": "birth_date",
+                "card_fields": [
+                    "contact_id",
+                    "polling_station"
+                ]
+            }
+        },
+        "default_view": "tree",
+        "view_sequence": [
+            "tree",
+            "kanban",
+            "form"
+        ]
+    }
+}

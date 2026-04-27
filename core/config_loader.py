@@ -13,9 +13,9 @@ class Config:
         self.use_cavemem = True
         self.ollama_url = "http://localhost:11434/api/generate"
         self.capability_map = {
-            "code": ["qwen2.5-coder:7b", "solaria-master"],
-            "reasoning": ["phi4", "solaria-master"],
-            "chat": ["llama3.1:8b", "solaria-master"]
+            "code": ["qwen2.5-coder:7b", "moa-master"],
+            "reasoning": ["phi4", "moa-master"],
+            "chat": ["llama3.1:8b", "moa-master"]
         }
         self.external_keys = {}
 

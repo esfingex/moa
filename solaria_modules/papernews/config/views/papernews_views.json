@@ -1,0 +1,46 @@
+{
+    "papernews.news": {
+        "views": {
+            "tree": {
+                "type": "tree",
+                "template": "layouts/list_htmx.html",
+                "title": "News Feed",
+                "fields": [
+                    "title",
+                    "source",
+                    "date"
+                ],
+                "searchable": true,
+                "actions": [
+                    "edit",
+                    "delete"
+                ]
+            },
+            "form": {
+                "type": "form",
+                "template": "layouts/form_htmx.html",
+                "title": "News Article",
+                "layout": "grid",
+                "groups": [
+                    {
+                        "name": "content",
+                        "label": "Article Details",
+                        "columns": 1,
+                        "fields": [
+                            "title",
+                            "source",
+                            "date",
+                            "summary",
+                            "content"
+                        ]
+                    }
+                ]
+            }
+        },
+        "default_view": "tree",
+        "view_sequence": [
+            "tree",
+            "form"
+        ]
+    }
+}

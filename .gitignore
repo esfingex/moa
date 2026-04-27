@@ -35,6 +35,7 @@ logs/*.log
 *.sqlite
 scratch/
 agents/profiles/private/
+**/blueprint.md
 
 # OS
 .DS_Store

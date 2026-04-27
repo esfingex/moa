@@ -21,8 +21,8 @@ LOGS_DIR = CACHE_DIR / "logs"
 # Pipelines Estándar (Ejemplos genéricos)
 PIPELINES: dict[str, list[dict]] = {
     "software_architect": [
-        {"skill": "architect", "label": "📐 MOA Architect", "task": "Design the system architecture based on requirements.", "use_prev": False},
-        {"skill": "coder", "label": "💻 MOA Coder", "task": "Implement the design following best practices.", "use_prev": True},
+        {"skill": "moa-master", "label": "📐 MOA Master Architect", "task": "Design the system architecture based on requirements.", "use_prev": False},
+        {"skill": "qwen25_coder", "label": "💻 MOA Coder", "task": "Implement the design following best practices.", "use_prev": True},
         {"skill": "tester", "label": "🛡️ MOA Tester", "task": "Audit and verify the implementation.", "use_prev": True},
     ],
     "thought_flow": [

@@ -58,6 +58,12 @@ def main():
 
     subparsers.add_parser("upgrade", help="Optimize model fleet")
 
+    # Comando: build-model
+    build_parser = subparsers.add_parser("build-model", help="Forge a specialized model")
+    build_parser.add_argument("--name", required=True, help="New model name")
+    build_parser.add_argument("--base", default="qwen2.5-coder:7b", help="Base model")
+    build_parser.add_argument("--prompt", required=True, help="System Prompt or path to .md file")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -82,17 +88,6 @@ def main():
     elif args.command == "run":
         print_banner()
         runner = PipelineRunner()
-        
-        # Lógica para "levantar terminal" si el usuario lo pide
-        if args.terminal:
-             print(f"{YELLOW}🔔 Opening monitor terminal...{RESET}")
-             # Nota: Esto asume un entorno con X11 o Wayland. Fallback silencioso si falla.
-             try:
-                 # Simplemente avisamos que el log está vivo
-                 print(f"Monitor live log at: cache/logs/")
-             except Exception:
-                 pass
-
         results = asyncio.run(runner.run(args.pipeline, args.file, args.task))
         
         if args.write:
@@ -100,6 +95,10 @@ def main():
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(results.strip(), encoding="utf-8")
             print(f"\n{GREEN}💾 Result saved in: {args.write}{RESET}")
+
+    elif args.command == "build-model":
+        print_banner()
+        asyncio.run(build_model_cmd(args))
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,28 @@
+{
+    "ir.cron": [
+        {
+            "id": "cron_papernews_scraper",
+            "name": "Descarga de Periódicos Diaria",
+            "active": true,
+            "model_id": "papernews.news",
+            "function": "run_scraper_cron",
+            "args": "{}",
+            "interval_number": 1,
+            "interval_type": "days",
+            "numbercall": -1,
+            "priority": 5
+        },
+        {
+            "id": "cron_papernews_mailing",
+            "name": "Envío de Newsletter de Periódicos",
+            "active": true,
+            "model_id": "papernews.news",
+            "function": "run_mailing_cron",
+            "args": "{}",
+            "interval_number": 1,
+            "interval_type": "days",
+            "numbercall": -1,
+            "priority": 6
+        }
+    ]
+}

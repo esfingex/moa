@@ -1,0 +1,22 @@
+{
+  "groups": [],
+  "model_permissions": [
+    {
+      "model": "electoral_roll.main",
+      "permissions": {
+        "base.group_system": {
+          "read": true,
+          "write": true,
+          "create": true,
+          "delete": true
+        },
+        "base.group_user": {
+          "read": true,
+          "write": true,
+          "create": true,
+          "delete": false
+        }
+      }
+    }
+  ]
+}
